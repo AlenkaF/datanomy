@@ -8,6 +8,7 @@ from pathlib import Path
 
 import pytest
 
+from datanomy.reader.ipc import IPCReader
 from datanomy.reader.parquet import ParquetReader
 from datanomy.tui.tui import DatanomyApp
 
@@ -98,4 +99,62 @@ async def test_app_with_multiple_row_groups(multi_row_group_parquet: Path) -> No
 
     async with app.run_test():
         # Should handle multiple row groups without crashing
+        app.query_one("#structure-content").render()
+
+
+# --- Arrow IPC TUI tests ---
+
+
+@pytest.mark.asyncio
+async def test_ipc_app_launches_without_crash(simple_ipc: Path) -> None:
+    """Test that app launches with an IPC file without crashing."""
+    reader = IPCReader(simple_ipc)
+    app = DatanomyApp(reader)
+
+    async with app.run_test():
+        assert app is not None
+
+
+@pytest.mark.asyncio
+async def test_ipc_app_has_required_tabs(simple_ipc: Path) -> None:
+    """Test that all expected IPC tabs are present (no Stats tab)."""
+    reader = IPCReader(simple_ipc)
+    app = DatanomyApp(reader)
+
+    async with app.run_test():
+        assert app.query_one("#tab-structure") is not None
+        assert app.query_one("#tab-schema") is not None
+        assert app.query_one("#tab-data") is not None
+        assert app.query_one("#tab-metadata") is not None
+
+
+@pytest.mark.asyncio
+async def test_ipc_tabs_render_without_error(simple_ipc: Path) -> None:
+    """Test that IPC tab content renders without throwing exceptions."""
+    reader = IPCReader(simple_ipc)
+    app = DatanomyApp(reader)
+
+    async with app.run_test():
+        app.query_one("#structure-content").render()
+        app.query_one("#schema-content").render()
+
+
+@pytest.mark.asyncio
+async def test_ipc_app_with_empty_file(empty_ipc: Path) -> None:
+    """Test that app handles empty Arrow IPC files."""
+    reader = IPCReader(empty_ipc)
+    app = DatanomyApp(reader)
+
+    async with app.run_test():
+        app.query_one("#structure-content").render()
+        app.query_one("#schema-content").render()
+
+
+@pytest.mark.asyncio
+async def test_ipc_app_with_multiple_batches(multi_batch_ipc: Path) -> None:
+    """Test that app handles multiple record batches."""
+    reader = IPCReader(multi_batch_ipc)
+    app = DatanomyApp(reader)
+
+    async with app.run_test():
         app.query_one("#structure-content").render()

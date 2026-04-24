@@ -1,10 +1,11 @@
-"""Tests for the ParquetReader module."""
+"""Tests for the reader modules."""
 
 from pathlib import Path
 
 import pytest
 from pyarrow.lib import ArrowInvalid
 
+from datanomy.reader.ipc import IPCReader
 from datanomy.reader.parquet import ParquetReader
 
 
@@ -98,3 +99,64 @@ def test_row_group_total_sizes(simple_parquet: Path) -> None:
     compressed_size, uncompressed_size = row_group.total_sizes
     assert compressed_size == 474
     assert uncompressed_size == 487
+
+
+# --- IPCReader tests ---
+
+
+def test_ipc_reader_simple_file(simple_ipc: Path) -> None:
+    """Test reader with a simple Arrow IPC file."""
+    reader = IPCReader(simple_ipc)
+
+    assert reader.file_path == simple_ipc
+    assert reader.num_rows == 5
+    assert reader.num_record_batches == 1
+    assert len(reader.schema_arrow) == 4
+    assert reader.file_size > 0
+
+
+def test_ipc_reader_multi_batches(multi_batch_ipc: Path) -> None:
+    """Test reader with multiple record batches."""
+    reader = IPCReader(multi_batch_ipc)
+
+    assert reader.num_rows == 300
+    assert reader.num_record_batches == 3
+
+    for i in range(reader.num_record_batches):
+        batch = reader.get_batch(i)
+        assert batch.num_rows == 100
+
+
+def test_ipc_reader_empty_file(empty_ipc: Path) -> None:
+    """Test reader with empty Arrow IPC file."""
+    reader = IPCReader(empty_ipc)
+
+    assert reader.num_rows == 0
+    assert reader.num_record_batches == 0
+    assert len(reader.schema_arrow) == 2
+    assert reader.file_size > 0
+
+
+def test_ipc_reader_nonexistent_file(tmp_path: Path) -> None:
+    """Test that IPCReader raises FileNotFoundError for nonexistent files."""
+    nonexistent = tmp_path / "nonexistent.arrow"
+
+    with pytest.raises(FileNotFoundError, match="File not found"):
+        IPCReader(nonexistent)
+
+
+def test_ipc_reader_invalid_file(invalid_ipc_file: Path) -> None:
+    """Test that IPCReader raises ArrowInvalid for non-IPC files."""
+    with pytest.raises(
+        ArrowInvalid, match="does not appear to be a valid Arrow IPC file"
+    ):
+        IPCReader(invalid_ipc_file)
+
+
+def test_ipc_reader_metadata(simple_ipc: Path) -> None:
+    """Test that IPCReader can access schema metadata."""
+    reader = IPCReader(simple_ipc)
+
+    # Simple files without custom metadata should return None
+    metadata = reader.metadata
+    assert metadata is None or isinstance(metadata, dict)
