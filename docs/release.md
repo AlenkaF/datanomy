@@ -13,6 +13,10 @@ Check the `.github/workflows/release.yaml` workflow.
 
 Check the github action for the tag was successful, validate the wheel and source distribution is on PyPI.
 
+Create new release manually on GitHub selecting the tag and adding the title as v0.X.Y.
+
+Click Generate Release notes from previous tag.
+
 ## Testing locally before release (optional)
 
 ```bash
