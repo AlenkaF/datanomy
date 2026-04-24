@@ -5,7 +5,7 @@ from pathlib import Path
 
 import click
 
-from datanomy.reader.parquet import ParquetReader
+from datanomy.reader import create_reader
 from datanomy.tui.tui import DatanomyApp
 
 
@@ -13,14 +13,14 @@ from datanomy.tui.tui import DatanomyApp
 @click.argument("file", type=click.Path(exists=True, path_type=Path))
 def main(file: Path) -> None:
     """
-    Explore the anatomy of your Parquet files.
+    Explore the anatomy of your data files.
 
     Parameters
     ----------
-        file: Path to a Parquet file to inspect
+        file: Path to a Parquet or Arrow IPC file to inspect
     """
     try:
-        reader = ParquetReader(file)
+        reader = create_reader(file)
         app = DatanomyApp(reader)
         app.run()
     except Exception as e:

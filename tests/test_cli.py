@@ -36,11 +36,11 @@ def test_cli_launches_app_with_valid_file(mock_app: Mock, simple_parquet: Path) 
 
 
 @patch("datanomy.cli.DatanomyApp")
-@patch("datanomy.cli.ParquetReader")
+@patch("datanomy.cli.create_reader")
 def test_cli_creates_reader(
     mock_reader: Mock, mock_app: Mock, simple_parquet: Path
 ) -> None:
-    """Test that CLI creates a ParquetReader with the correct file path."""
+    """Test that CLI creates a reader with the correct file path."""
     runner = CliRunner()
     runner.invoke(main, [str(simple_parquet)])
 
@@ -58,3 +58,17 @@ def test_cli_accepts_parquet_without_extension(
 
         # Should accept file based on content, not extension
         assert result.exit_code == 0
+
+
+@patch("datanomy.cli.DatanomyApp")
+def test_cli_launches_app_with_ipc_file(mock_app: Mock, simple_ipc: Path) -> None:
+    """Test that CLI launches the app with a valid Arrow IPC file."""
+    mock_app_instance = Mock()
+    mock_app.return_value = mock_app_instance
+
+    runner = CliRunner()
+    result = runner.invoke(main, [str(simple_ipc)])
+
+    assert mock_app.called
+    assert mock_app_instance.run.called
+    assert result.exit_code == 0
