@@ -11,11 +11,24 @@ from rich.text import Text
 
 _MAX_ROWS = 10
 
+
 def _title_color(name: str) -> str:
     return "orange1"
 
 
 def _validity_text(buf: pa.Buffer | None, num_rows: int) -> Text:
+    """
+    Render a validity bitmap buffer as colored bit text.
+
+    Parameters
+    ----------
+        buf: Validity bitmap buffer, or None if not allocated
+        num_rows: Number of array elements to unpack
+
+    Returns
+    -------
+        Text: Rich Text with white 1s and violet 0s, or a dim not-present message
+    """
     if buf is None or len(memoryview(buf)) == 0:
         return Text("not present (no nulls)", style="dim")
     bits = []
@@ -29,6 +42,17 @@ def _validity_text(buf: pa.Buffer | None, num_rows: int) -> Text:
 
 
 def _values_text(array: pa.Array) -> Text:
+    """
+    Render array values as space-separated text with dim nulls.
+
+    Parameters
+    ----------
+        array: PyArrow array to render
+
+    Returns
+    -------
+        Text: Rich Text with values separated by two spaces
+    """
     t = Text()
     for i, v in enumerate(array.to_pylist()):
         if i > 0:
@@ -38,6 +62,19 @@ def _values_text(array: pa.Array) -> Text:
 
 
 def _offsets_text(buf: pa.Buffer, num_rows: int, offset_type: pa.DataType) -> Text:
+    """
+    Render an offsets buffer as space-separated integer text.
+
+    Parameters
+    ----------
+        buf: Raw offsets buffer
+        num_rows: Number of array elements (offsets array has num_rows + 1 entries)
+        offset_type: PyArrow integer type for the offsets (int32 or int64)
+
+    Returns
+    -------
+        Text: Rich Text with offset values separated by two spaces
+    """
     arr = pa.Array.from_buffers(offset_type, num_rows + 1, [None, buf])
     t = Text()
     for i, v in enumerate(arr.to_pylist()):
@@ -48,18 +85,51 @@ def _offsets_text(buf: pa.Buffer, num_rows: int, offset_type: pa.DataType) -> Te
 
 
 def _data_text(buf: pa.Buffer) -> Text:
+    """
+    Decode a raw data buffer as UTF-8 text.
+
+    Parameters
+    ----------
+        buf: Raw data buffer containing UTF-8 bytes
+
+    Returns
+    -------
+        Text: Rich Text with the decoded string content
+    """
     return Text(bytes(memoryview(buf)).decode("utf-8", errors="replace"))
 
 
 def _buffer_items(name: str, content: Text) -> list:
-    """Return a label + compact box pair for one buffer."""
+    """
+    Return an orange label and a compact white-bordered box for one buffer.
+
+    Parameters
+    ----------
+        name: Buffer name shown as the label above the box
+        content: Rich Text content to display inside the box
+
+    Returns
+    -------
+        list: [Text label, Panel box, Text spacer]
+    """
     label = Text(name, style=_title_color(name))
     box = Panel(content, border_style="white", expand=False, padding=(0, 1))
     return [label, box, Text()]
 
 
 def column_panel(field_name: str, array: pa.Array) -> Panel:
-    """Render a column's buffer layout as a Rich Panel."""
+    """
+    Render a column's buffer layout as a Rich Panel.
+
+    Parameters
+    ----------
+        field_name: Column name shown in the panel title
+        array: PyArrow array whose buffers are displayed
+
+    Returns
+    -------
+        Panel: Rich Panel containing labeled buffer boxes for the column
+    """
     t = array.type
     n = min(len(array), _MAX_ROWS)
     array = array.slice(0, n)

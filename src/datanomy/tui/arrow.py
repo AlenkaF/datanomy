@@ -19,14 +19,29 @@ class BaseArrowTab(Static):
     """Base class for Arrow tab widgets."""
 
     def __init__(self, reader: IPCReader) -> None:
+        """
+        Initialize the tab view.
+
+        Parameters
+        ----------
+            reader: IPCReader instance
+        """
         super().__init__()
         self.reader = reader
 
     def compose(self) -> ComposeResult:
+        """Render the tab view."""
         content_id = f"{self.__class__.__name__.lower().replace('tab', '')}-content"
         yield Static(self.render_tab_content(), id=content_id)
 
     def render_tab_content(self) -> Group:
+        """
+        Render the tab content. Must be implemented by subclasses.
+
+        Returns
+        -------
+            Group: Rich renderable content
+        """
         raise NotImplementedError("Subclasses must implement render_tab_content()")
 
 
@@ -34,12 +49,26 @@ class StructureTab(BaseArrowTab):
     """Widget displaying Arrow file structure."""
 
     def _header(self) -> Panel:
+        """
+        Create Panel for Arrow IPC header information.
+
+        Returns
+        -------
+            Panel: Rich Panel with Arrow IPC header representation
+        """
         header_text = Text()
         header_text.append("Magic Number: ARROW1\n", style="yellow")
         header_text.append("Size: 6 bytes")
         return Panel(header_text, title="Header", border_style="yellow")
 
     def _file_info(self) -> Text:
+        """
+        Create Text for Arrow file information.
+
+        Returns
+        -------
+            Text: Rich Text with file information representation
+        """
         file_size_str = format_size(self.reader.file_size)
         file_info = Text()
         file_info.append("File: ", style="bold")
@@ -49,6 +78,13 @@ class StructureTab(BaseArrowTab):
         return file_info
 
     def _record_batches(self) -> list[Panel]:
+        """
+        Create Panels for each record batch.
+
+        Returns
+        -------
+            list[Panel]: List of Rich Panels for record batches
+        """
         panels: list[Panel] = []
         for i in range(self.reader.num_record_batches):
             batch = self.reader.get_batch(i)
@@ -66,6 +102,13 @@ class StructureTab(BaseArrowTab):
         return panels
 
     def _footer(self) -> Panel:
+        """
+        Create Panel for Arrow IPC footer information.
+
+        Returns
+        -------
+            Panel: Rich Panel with Arrow IPC footer representation
+        """
         footer_text = Text()
         footer_text.append(f"Total Rows: {self.reader.num_rows:,}\n")
         footer_text.append(f"Record Batches: {self.reader.num_record_batches}\n")
@@ -74,6 +117,13 @@ class StructureTab(BaseArrowTab):
         return Panel(footer_text, title="[blue]Footer[/blue]", border_style="blue")
 
     def render_tab_content(self) -> Group:
+        """
+        Render the Arrow file structure diagram.
+
+        Returns
+        -------
+            Group: Rich renderable showing file structure
+        """
         sections: list[Text | Panel] = [
             self._file_info(),
             Text(),
@@ -89,6 +139,13 @@ class SchemaTab(BaseArrowTab):
     """Widget displaying Arrow schema information."""
 
     def _schema_structure(self) -> Panel:
+        """
+        Create Panel for Arrow schema structure.
+
+        Returns
+        -------
+            Panel: Rich Panel with schema structure
+        """
         schema = self.reader.schema_arrow
         schema_text = Text()
         for field in schema:
@@ -97,6 +154,13 @@ class SchemaTab(BaseArrowTab):
         return Panel(schema_text, title="[yellow]Arrow Schema[/yellow]", border_style="yellow")
 
     def _column_details(self) -> Panel:
+        """
+        Create Panel with column details grid.
+
+        Returns
+        -------
+            Panel: Rich Panel containing column information in a 3-column grid
+        """
         schema = self.reader.schema_arrow
         num_columns = len(schema)
         schema_table = create_column_grid(num_columns=3)
@@ -131,6 +195,13 @@ class SchemaTab(BaseArrowTab):
         return Panel(schema_table, title="[cyan]Column Details[/cyan]", border_style="cyan")
 
     def render_tab_content(self) -> Group:
+        """
+        Render schema information.
+
+        Returns
+        -------
+            Group: Rich renderable showing Arrow schema as column panels and structure
+        """
         return Group(self._schema_structure(), Text(), self._column_details())
 
 
@@ -138,12 +209,32 @@ class DataTab(BaseArrowTab):
     """Widget displaying data preview."""
 
     def __init__(self, reader: IPCReader, num_rows: int = 50) -> None:
+        """
+        Initialize the data view.
+
+        Parameters
+        ----------
+            reader: IPCReader instance
+            num_rows: Number of rows to display (default: 50)
+        """
         super().__init__(reader)
         self.num_rows = num_rows
         self.id = "data-content"
 
     @staticmethod
     def _format_value(value: Any, max_length: int = 50) -> str:
+        """
+        Format a value for display.
+
+        Parameters
+        ----------
+            value: The value to format
+            max_length: Maximum string length before truncation
+
+        Returns
+        -------
+            str: Formatted value string
+        """
         if value is None:
             return "NULL"
         value_str = str(value)
@@ -152,12 +243,35 @@ class DataTab(BaseArrowTab):
         return value_str
 
     def _read_data(self) -> tuple[Any, int, int]:
+        """
+        Read and slice data from Arrow IPC file.
+
+        Returns
+        -------
+            tuple[Any, int, int]: (table, num_rows_display, total_rows)
+
+        Raises
+        ------
+            Exception: If reading data fails
+        """
         table = self.reader.ipc_file.read_all()
         if len(table) > self.num_rows:
             table = table.slice(0, self.num_rows)
         return table, len(table), self.reader.num_rows
 
     def _create_data_table(self, table: Any, num_rows_display: int) -> DataTable:
+        """
+        Create a Textual ``DataTable`` widget populated with preview rows.
+
+        Parameters
+        ----------
+            table: PyArrow table slice for preview rendering
+            num_rows_display: Number of rows to include in the table
+
+        Returns
+        -------
+            DataTable: Configured widget ready for display
+        """
         data_table: DataTable = DataTable(id="data-preview-table", zebra_stripes=True)
         data_table.border_title = "Data Preview"
         data_table.styles.border = ("round", "cyan")
@@ -185,6 +299,13 @@ class DataTab(BaseArrowTab):
         return data_table
 
     def compose(self) -> ComposeResult:
+        """
+        Compose widgets for the data preview tab.
+
+        Yields
+        ------
+            ComposeResult: Child widgets making up the tab content
+        """
         try:
             table, num_rows_display, total_rows = self._read_data()
         except Exception as e:
@@ -224,6 +345,13 @@ class MetadataTab(BaseArrowTab):
     """Display Arrow file metadata."""
 
     def _file_info(self) -> Panel:
+        """
+        Create Panel with file information.
+
+        Returns
+        -------
+            Panel: Rich Panel with file metadata information
+        """
         file_info = Text()
         file_info.append("File size: ", style="bold")
         file_info.append(f"{format_size(self.reader.file_size)}\n", style="cyan")
@@ -236,6 +364,13 @@ class MetadataTab(BaseArrowTab):
         return Panel(file_info, title="[cyan]File Information[/cyan]", border_style="cyan")
 
     def _custom_metadata(self) -> Panel:
+        """
+        Create Panel with custom metadata.
+
+        Returns
+        -------
+            Panel: Rich Panel with custom metadata key-value pairs
+        """
         metadata = self.reader.metadata
         custom_metadata = Text()
         if metadata:
@@ -259,6 +394,13 @@ class MetadataTab(BaseArrowTab):
         )
 
     def render_tab_content(self) -> Group:
+        """
+        Render file metadata.
+
+        Returns
+        -------
+            Group: Rich renderable showing file and custom metadata
+        """
         return Group(self._file_info(), Text(), self._custom_metadata())
 
 
@@ -266,6 +408,17 @@ class BuffersTab(BaseArrowTab):
     """Widget displaying buffer-level physical layout for each column."""
 
     def _batch_group(self, batch_idx: int) -> Group:
+        """
+        Build the renderable content for a single record batch.
+
+        Parameters
+        ----------
+            batch_idx: Index of the record batch to render
+
+        Returns
+        -------
+            Group: Rich renderable with batch header and column buffer panels
+        """
         schema = self.reader.schema_arrow
         batch = self.reader.get_batch(batch_idx)
         header = Text()
@@ -278,6 +431,13 @@ class BuffersTab(BaseArrowTab):
         return Group(header, Text(), *panels)
 
     def render_tab_content(self) -> Group:
+        """
+        Render buffer layout for up to two record batches side by side.
+
+        Returns
+        -------
+            Group: Rich renderable showing buffer panels per column per batch
+        """
         num_batches = self.reader.num_record_batches
         batches_to_show = min(num_batches, 2)
 
