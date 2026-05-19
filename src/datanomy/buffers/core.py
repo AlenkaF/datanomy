@@ -137,24 +137,36 @@ def column_panel(field_name: str, array: pa.Array) -> Panel:
     items: list = _buffer_items("Validity buffer", _validity_text(buffers[0], n))
 
     if pa.types.is_string(t) or pa.types.is_binary(t):
-        items += _buffer_items("Offsets buffer", _offsets_text(buffers[1], n, pa.int32()))
+        items += _buffer_items(
+            "Offsets buffer", _offsets_text(buffers[1], n, pa.int32())
+        )
         if buffers[2] is not None:
             items += _buffer_items("Data buffer", _data_text(buffers[2]))
 
     elif pa.types.is_large_string(t) or pa.types.is_large_binary(t):
-        items += _buffer_items("Offsets buffer", _offsets_text(buffers[1], n, pa.int64()))
+        items += _buffer_items(
+            "Offsets buffer", _offsets_text(buffers[1], n, pa.int64())
+        )
         if buffers[2] is not None:
             items += _buffer_items("Data buffer", _data_text(buffers[2]))
 
     elif pa.types.is_list(t):
-        items += _buffer_items("Offsets buffer", _offsets_text(buffers[1], n, pa.int32()))
+        items += _buffer_items(
+            "Offsets buffer", _offsets_text(buffers[1], n, pa.int32())
+        )
         child_n = array.offsets[n].as_py()
-        items += _buffer_items("Values buffer", _values_text(array.values.slice(0, child_n)))
+        items += _buffer_items(
+            "Values buffer", _values_text(array.values.slice(0, child_n))
+        )
 
     elif pa.types.is_large_list(t):
-        items += _buffer_items("Offsets buffer", _offsets_text(buffers[1], n, pa.int64()))
+        items += _buffer_items(
+            "Offsets buffer", _offsets_text(buffers[1], n, pa.int64())
+        )
         child_n = array.offsets[n].as_py()
-        items += _buffer_items("Values buffer", _values_text(array.values.slice(0, child_n)))
+        items += _buffer_items(
+            "Values buffer", _values_text(array.values.slice(0, child_n))
+        )
 
     elif pa.types.is_string_view(t) or pa.types.is_binary_view(t):
         items += _buffer_items("Views buffer", _values_text(array))

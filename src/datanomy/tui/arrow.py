@@ -150,8 +150,12 @@ class SchemaTab(BaseArrowTab):
         schema_text = Text()
         for field in schema:
             nullable = "nullable" if field.nullable else "not null"
-            schema_text.append(f"{field.name}: {field.type} ({nullable})\n", style="dim")
-        return Panel(schema_text, title="[yellow]Arrow Schema[/yellow]", border_style="yellow")
+            schema_text.append(
+                f"{field.name}: {field.type} ({nullable})\n", style="dim"
+            )
+        return Panel(
+            schema_text, title="[yellow]Arrow Schema[/yellow]", border_style="yellow"
+        )
 
     def _column_details(self) -> Panel:
         """
@@ -192,7 +196,9 @@ class SchemaTab(BaseArrowTab):
                     row_panels.append(Text(""))
             schema_table.add_row(*row_panels)
 
-        return Panel(schema_table, title="[cyan]Column Details[/cyan]", border_style="cyan")
+        return Panel(
+            schema_table, title="[cyan]Column Details[/cyan]", border_style="cyan"
+        )
 
     def render_tab_content(self) -> Group:
         """
@@ -361,7 +367,9 @@ class MetadataTab(BaseArrowTab):
         file_info.append(f"{len(self.reader.schema_arrow)}\n", style="green")
         file_info.append("Record batches: ", style="bold")
         file_info.append(f"{self.reader.num_record_batches}\n", style="green")
-        return Panel(file_info, title="[cyan]File Information[/cyan]", border_style="cyan")
+        return Panel(
+            file_info, title="[cyan]File Information[/cyan]", border_style="cyan"
+        )
 
     def _custom_metadata(self) -> Panel:
         """
@@ -379,7 +387,9 @@ class MetadataTab(BaseArrowTab):
                 value_str = value.decode("utf-8") if isinstance(value, bytes) else value
                 custom_metadata.append(f"{key_str}:\n", style="bold yellow")
                 if len(value_str) > 200:
-                    custom_metadata.append(f"  {value_str[:200]}...\n", style="dim white")
+                    custom_metadata.append(
+                        f"  {value_str[:200]}...\n", style="dim white"
+                    )
                     custom_metadata.append(
                         f"  (truncated, {len(value_str)} bytes total)\n",
                         style="italic magenta",
