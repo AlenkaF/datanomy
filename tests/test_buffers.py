@@ -5,10 +5,14 @@ from rich.panel import Panel
 from rich.text import Text
 
 from datanomy.buffers.core import (
+    _bitmap_text,
+    _bool_values_text,
     _data_text,
+    _numeric_text,
+    _numeric_values_text,
     _offsets_text,
+    _string_view_text,
     _validity_text,
-    _values_text,
     column_panel,
 )
 
@@ -17,10 +21,10 @@ from datanomy.buffers.core import (
 
 
 def test_validity_text_none_buffer() -> None:
-    """None buffer means no nulls; returns a dim 'not present' message."""
+    """None buffer means no nulls; returns a dim 'None' message."""
     result = _validity_text(None, 5)
     assert isinstance(result, Text)
-    assert "not present" in result.plain
+    assert "None" in result.plain
 
 
 def test_validity_text_no_nulls() -> None:
@@ -30,7 +34,7 @@ def test_validity_text_no_nulls() -> None:
     result = _validity_text(buf, 5)
     assert isinstance(result, Text)
     if buf is None:
-        assert "not present" in result.plain
+        assert "None" in result.plain
     else:
         assert "1" in result.plain
 
@@ -56,35 +60,129 @@ def test_validity_text_all_nulls() -> None:
     assert "0" in result.plain
 
 
-# --- _values_text ---
+# --- _bitmap_text ---
 
 
-def test_values_text_no_nulls() -> None:
-    """All values are rendered as plain strings."""
+def test_bitmap_text_basic() -> None:
+    """Bitmap text returns a Text with only '1' and '0' characters."""
+    arr = pa.array([1, None, 3], type=pa.int32())
+    buf = arr.buffers()[0]
+    assert buf is not None
+    result = _bitmap_text(buf, 3)
+    assert isinstance(result, Text)
+    for ch in result.plain:
+        assert ch in ("0", "1")
+
+
+def test_bitmap_text_length() -> None:
+    """Bitmap text has ceil(n/8)*8 characters: n meaningful bits plus padding."""
+    arr = pa.array([1, None, 3, None, 5], type=pa.int32())
+    buf = arr.buffers()[0]
+    assert buf is not None
+    result = _bitmap_text(buf, 5)
+    # 5 elements → 1 byte → 8 bits (5 meaningful + 3 dim padding)
+    assert len(result.plain) == 8
+
+
+# --- _numeric_text ---
+
+
+def test_numeric_text_int32() -> None:
+    """Offsets buffer reads correct int32 values."""
+    arr = pa.array(["hello", "world"], type=pa.string())
+    buf = arr.buffers()[1]
+    assert buf is not None
+    result = _numeric_text(buf, "int32", 3)
+    assert isinstance(result, Text)
+    assert "0" in result.plain
+    assert "5" in result.plain
+    assert "10" in result.plain
+
+
+def test_numeric_text_int64() -> None:
+    """Large-string offsets read correct int64 values."""
+    arr = pa.array(["foo", "bar"], type=pa.large_string())
+    buf = arr.buffers()[1]
+    assert buf is not None
+    result = _numeric_text(buf, "int64", 3)
+    assert isinstance(result, Text)
+    assert "0" in result.plain
+    assert "3" in result.plain
+    assert "6" in result.plain
+
+
+# --- _numeric_values_text ---
+
+
+def test_numeric_values_text_no_nulls() -> None:
+    """All values rendered as plain strings when validity is None."""
     arr = pa.array([10, 20, 30], type=pa.int32())
-    result = _values_text(arr)
+    buf = arr.buffers()[1]
+    assert buf is not None
+    result = _numeric_values_text(buf, None, 3, "int32")
     assert isinstance(result, Text)
     assert "10" in result.plain
     assert "20" in result.plain
     assert "30" in result.plain
 
 
-def test_values_text_with_nulls() -> None:
-    """Null values are rendered as the literal word 'null'."""
+def test_numeric_values_text_with_nulls() -> None:
+    """Null values rendered as dim '-' character."""
     arr = pa.array([10, None, 30], type=pa.int32())
-    result = _values_text(arr)
+    validity_buf = arr.buffers()[0]
+    values_buf = arr.buffers()[1]
+    assert values_buf is not None
+    result = _numeric_values_text(values_buf, validity_buf, 3, "int32")
     assert isinstance(result, Text)
-    assert "null" in result.plain
+    assert "-" in result.plain
     assert "10" in result.plain
     assert "30" in result.plain
 
 
-def test_values_text_all_nulls() -> None:
-    """All-null array renders only 'null' entries."""
+def test_numeric_values_text_all_nulls() -> None:
+    """All-null array renders only '-' entries."""
     arr = pa.array([None, None], type=pa.int32())
-    result = _values_text(arr)
+    validity_buf = arr.buffers()[0]
+    values_buf = arr.buffers()[1]
+    assert values_buf is not None
+    result = _numeric_values_text(values_buf, validity_buf, 2, "int32")
     assert isinstance(result, Text)
-    assert "null" in result.plain
+    assert "-" in result.plain
+
+
+# --- _bool_values_text ---
+
+
+def test_bool_values_text_basic() -> None:
+    """Boolean values text contains a bits line and a values line."""
+    arr = pa.array([True, False, None], type=pa.bool_())
+    validity_buf = arr.buffers()[0]
+    values_buf = arr.buffers()[1]
+    assert values_buf is not None
+    result = _bool_values_text(values_buf, validity_buf, 3)
+    assert isinstance(result, Text)
+    assert "bits:" in result.plain
+    assert "values:" in result.plain
+
+
+def test_bool_values_text_null_as_dash() -> None:
+    """Null boolean values are rendered as '-'."""
+    arr = pa.array([True, None], type=pa.bool_())
+    validity_buf = arr.buffers()[0]
+    values_buf = arr.buffers()[1]
+    assert values_buf is not None
+    result = _bool_values_text(values_buf, validity_buf, 2)
+    assert "-" in result.plain
+
+
+def test_bool_values_text_no_nulls() -> None:
+    """Without nulls, values show True/False."""
+    arr = pa.array([True, False], type=pa.bool_())
+    values_buf = arr.buffers()[1]
+    assert values_buf is not None
+    result = _bool_values_text(values_buf, None, 2)
+    assert "True" in result.plain
+    assert "False" in result.plain
 
 
 # --- _offsets_text ---
@@ -97,7 +195,6 @@ def test_offsets_text_int32() -> None:
     assert buf is not None
     result = _offsets_text(buf, 2, pa.int32())
     assert isinstance(result, Text)
-    # "hello" is 5 bytes → offsets [0, 5, 10]
     assert "0" in result.plain
     assert "5" in result.plain
     assert "10" in result.plain
@@ -110,7 +207,6 @@ def test_offsets_text_int64() -> None:
     assert buf is not None
     result = _offsets_text(buf, 2, pa.int64())
     assert isinstance(result, Text)
-    # "foo" is 3 bytes → offsets [0, 3, 6]
     assert "0" in result.plain
     assert "3" in result.plain
     assert "6" in result.plain
@@ -153,6 +249,41 @@ def test_data_text_non_ascii() -> None:
     assert buf is not None
     result = _data_text(buf)
     assert isinstance(result, Text)
+
+
+# --- _string_view_text ---
+
+
+def test_string_view_text_inline() -> None:
+    """Short strings (<=12 bytes) are shown inline in quotes."""
+    arr = pa.array(["hi", "bye"], type=pa.string_view())
+    views_buf = arr.buffers()[1]
+    assert views_buf is not None
+    result = _string_view_text(views_buf, None, 2)
+    assert isinstance(result, Text)
+    assert '"hi"' in result.plain
+    assert '"bye"' in result.plain
+
+
+def test_string_view_text_long() -> None:
+    """Long strings (>12 bytes) show len/prefix/buf/offset metadata."""
+    arr = pa.array(["a-string-longer-than-twelve-bytes"], type=pa.string_view())
+    views_buf = arr.buffers()[1]
+    assert views_buf is not None
+    result = _string_view_text(views_buf, None, 1)
+    assert isinstance(result, Text)
+    assert "len=" in result.plain
+
+
+def test_string_view_text_with_nulls() -> None:
+    """Null values in string_view arrays are rendered as '-'."""
+    arr = pa.array(["hi", None, "bye"], type=pa.string_view())
+    views_buf = arr.buffers()[1]
+    validity_buf = arr.buffers()[0]
+    assert views_buf is not None
+    result = _string_view_text(views_buf, validity_buf, 3)
+    assert isinstance(result, Text)
+    assert "-" in result.plain
 
 
 # --- column_panel ---
@@ -229,8 +360,17 @@ def test_column_panel_list_of_strings() -> None:
     assert isinstance(column_panel("tags", arr), Panel)
 
 
+def test_column_panel_list_view() -> None:
+    """List-view column has offsets and sizes buffers; renders without error."""
+    arr = pa.array(
+        [["a", "b"], None, ["c"], [], ["d", "e"]],
+        type=pa.list_view(pa.string()),
+    )
+    assert isinstance(column_panel("labels", arr), Panel)
+
+
 def test_column_panel_struct() -> None:
-    """Struct column renders values buffer without error."""
+    """Struct column renders all child buffers without error."""
     struct_type = pa.struct([pa.field("x", pa.int32()), pa.field("y", pa.int32())])
     arr = pa.array([{"x": 1, "y": 2}, None, {"x": 3, "y": 4}], type=struct_type)
     assert isinstance(column_panel("point", arr), Panel)
@@ -252,6 +392,56 @@ def test_column_panel_truncates_long_array() -> None:
     """Arrays longer than _MAX_ROWS (10) are silently truncated."""
     arr = pa.array(list(range(50)), type=pa.int32())
     assert isinstance(column_panel("long_col", arr), Panel)
+
+
+def test_column_panel_fixed_size_list() -> None:
+    """Fixed-size list column renders child buffers without error."""
+    arr = pa.array(
+        [[1, 2, 3], None, [4, 5, 6]],
+        type=pa.list_(pa.int16(), 3),
+    )
+    assert isinstance(column_panel("coords", arr), Panel)
+
+
+def test_column_panel_map() -> None:
+    """Map column renders offsets, entries validity, key and value buffers without error."""
+    arr = pa.array(
+        [[("a", 1), ("b", 2)], None, [("c", 3)]],
+        type=pa.map_(pa.string(), pa.int32()),
+    )
+    assert isinstance(column_panel("attrs", arr), Panel)
+
+
+def test_column_panel_null_type() -> None:
+    """Null type column (all values null by definition) renders without error."""
+    arr = pa.array([None, None, None], type=pa.null())
+    assert isinstance(column_panel("nothing", arr), Panel)
+
+
+def test_column_panel_dictionary() -> None:
+    """Dictionary-encoded column renders indices and dictionary array separately."""
+    d = pa.array(["Python", "Data", "Arrow"])
+    arr = pa.DictionaryArray.from_arrays(
+        pa.array([0, 1, None, 2, 0], type=pa.int16()), d
+    )
+    panel = column_panel("lang", arr)
+    assert isinstance(panel, Panel)
+
+
+def test_column_panel_unsupported_type_shows_message() -> None:
+    """Unsupported types (e.g. run_end_encoded) show a 'not yet supported' message."""
+    arr = pa.RunEndEncodedArray.from_arrays(
+        run_ends=pa.array([2, 4, 5], type=pa.int32()),
+        values=pa.array(["a", "b", "c"]),
+    )
+    panel = column_panel("ree_col", arr)
+    assert isinstance(panel, Panel)
+    import io
+    from rich.console import Console
+
+    buf = io.StringIO()
+    Console(file=buf, width=120).print(panel)
+    assert "not yet supported" in buf.getvalue()
 
 
 def test_column_panel_single_row() -> None:

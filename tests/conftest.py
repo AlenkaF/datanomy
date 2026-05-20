@@ -241,6 +241,7 @@ def complex_ipc(tmp_path: Path) -> Path:
             ("score", pa.float64()),
             ("is_active", pa.bool_()),
             ("tags", pa.list_(pa.string())),
+            ("labels", pa.list_view(pa.string())),
             (
                 "address",
                 pa.struct(
@@ -269,6 +270,10 @@ def complex_ipc(tmp_path: Path) -> Path:
                 "score": [9.5, None, 7.1, 8.8, None],
                 "is_active": [True, False, None, True, True],
                 "tags": [["eng", "senior"], ["eng"], None, ["design", "lead"], []],
+                "labels": pa.array(
+                    [["a", "b"], None, ["c"], [], ["d", "e"]],
+                    type=pa.list_view(pa.string()),
+                ),
                 "address": pa.array(
                     [
                         {"city": "Amsterdam", "zip": 1011},
@@ -296,6 +301,10 @@ def complex_ipc(tmp_path: Path) -> Path:
                 "score": [None, 6.0, 8.3, None, 7.7],
                 "is_active": [True, None, True, False, True],
                 "tags": [["exec"], None, ["ops", "infra"], ["eng"], ["eng", "senior"]],
+                "labels": pa.array(
+                    [None, ["x"], ["y", "z"], [], ["w"]],
+                    type=pa.list_view(pa.string()),
+                ),
                 "address": pa.array(
                     [
                         {"city": "Madrid", "zip": 28001},
