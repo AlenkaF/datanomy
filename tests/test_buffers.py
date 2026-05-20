@@ -1,7 +1,6 @@
 """Tests for the buffers display module."""
 
 import pyarrow as pa
-import pytest
 from rich.panel import Panel
 from rich.text import Text
 
@@ -169,14 +168,14 @@ def test_column_panel_title_contains_field_name() -> None:
     """Panel title includes the field name."""
     arr = pa.array([1, 2, 3], type=pa.int32())
     panel = column_panel("my_field", arr)
-    assert "my_field" in panel.title
+    assert "my_field" in str(panel.title)
 
 
 def test_column_panel_title_contains_type() -> None:
     """Panel title includes the Arrow type."""
     arr = pa.array([1, 2, 3], type=pa.int32())
     panel = column_panel("col", arr)
-    assert "int32" in panel.title
+    assert "int32" in str(panel.title)
 
 
 def test_column_panel_int32_with_nulls() -> None:
