@@ -147,7 +147,9 @@ def _bool_values_text(
     for i, (b, is_valid) in enumerate(zip(bits, valid)):
         if i > 0:
             t.append("  ")
-        t.append("-", style="dim") if not is_valid else t.append("True" if b else "False")
+        t.append("-", style="dim") if not is_valid else t.append(
+            "True" if b else "False"
+        )
     return t
 
 
@@ -342,7 +344,11 @@ def _validity_items(buf: pa.Buffer | None, n: int, label: str) -> list:
     label_text = Text(label, style=_ORANGE)
     if buf is None or len(buf) == 0:
         return [label_text, Text("  None", style="dim"), Text()]
-    return [label_text, Panel(_bitmap_text(buf, n), border_style="white", expand=False, padding=(0, 1)), Text()]
+    return [
+        label_text,
+        Panel(_bitmap_text(buf, n), border_style="white", expand=False, padding=(0, 1)),
+        Text(),
+    ]
 
 
 def _buffer_items(name: str, content: Text) -> list:
@@ -370,7 +376,7 @@ def _buffer_items(name: str, content: Text) -> list:
 
 def _is_supported(t: pa.DataType) -> bool:
     """Return True if the type is handled by _walk_and_render."""
-    return (
+    return bool(
         pa.types.is_null(t)
         or pa.types.is_boolean(t)
         or pa.types.is_string(t)
@@ -416,7 +422,10 @@ def _walk_and_render(
         items: Accumulator list — display items are appended in place
     """
     if not _is_supported(t):
-        items += [Text(f"{prefix}type '{t}' not yet supported in buffers view", style="dim"), Text()]
+        items += [
+            Text(f"{prefix}type '{t}' not yet supported in buffers view", style="dim"),
+            Text(),
+        ]
         return
 
     if pa.types.is_null(t):
@@ -580,8 +589,12 @@ def _walk_and_render(
         )
         keys = array.keys.slice(0, entries_n)
         values = array.items.slice(0, entries_n)
-        _walk_and_render(t.key_type, keys, entries_n, f"{prefix}Key — ", next_buf, items)
-        _walk_and_render(t.item_type, values, entries_n, f"{prefix}Value — ", next_buf, items)
+        _walk_and_render(
+            t.key_type, keys, entries_n, f"{prefix}Key — ", next_buf, items
+        )
+        _walk_and_render(
+            t.item_type, values, entries_n, f"{prefix}Value — ", next_buf, items
+        )
 
     elif pa.types.is_primitive(t):
         buf = next_buf()
